@@ -2,25 +2,26 @@ import React, { useState } from 'react';
 import Button from '@mui/material/Button';
 import Ethereum from './Ethereum.png'
 import { ethers } from 'ethers';
-import { useWeb3ModalProvider, useWeb3ModalAccount } from '@web3modal/ethers5/react'
+import { useWeb3ModalProvider, useWeb3ModalEvents, useWeb3ModalAccount } from '@web3modal/ethers5/react'
 
 // the sender address
 const EVO_WALLET_ADDRESS = process.env.REACT_APP_EVO_WALLET_ADDRESS;
-// contract address for the EVoT
-const EVOT_CONTRACT_ADDRESS = process.env.REACT_APP_EVOT_CONTRACT_ADDRESS;
-// contract address for the Test
-const TEST_CONTRACT_ADDRESS = process.env.REACT_APP_TEST_CONTRACT_ADDRESS;
+// Testnet contract address for the Test
+const EVOT_TESTNET_CONTRACT_ADDRESS = process.env.REACT_APP_EVOT_TESTNET_CONTRACT_ADDRESS;
+// Mainnet contract address for the EVoT
+const EVOT_MAINNET_CONTRACT_ADDRESS = process.env.REACT_APP_EVOT_MAINNET_CONTRACT_ADDRESS;
 // the sender privatekey
 const EVO_WALLET_PRIVATE_KEY = process.env.REACT_APP_EVO_WALLET_PRIVATE_KEY;
 
 // Token ABI
 const EVOT_CONTRACT_ABI = process.env.REACT_APP_EVOT_CONTRACT_ABI;
-const TEST_CONTRACT_ABI = process.env.REACT_APP_EVOT_TEST_CONTRACT_ABI;
 
 // bet amount
 const betAmount = '1'
 // amount to send
-const amountToCredit = '1000'
+const amountToCredit = '100'
+// EVoT monitization value against CRO
+const amountDenominator = '10'
 
 const WalletCard = () => {
     const [errorMessage, setErrorMessage] = useState(null);
@@ -30,7 +31,7 @@ const WalletCard = () => {
     const [minThreshold, setMinThreshold] = useState(0);
     const { address, chainId, isConnected } = useWeb3ModalAccount()
     const { walletProvider } = useWeb3ModalProvider()
-
+    
     function BalanceHandler() {
         async function getBalance() {
             if (!isConnected) {
@@ -39,13 +40,14 @@ const WalletCard = () => {
                 const ethersProvider = new ethers.providers.Web3Provider(walletProvider)
                 const signer = ethersProvider.getSigner()
                 // The Contract object
-                const evotContract = new ethers.Contract(TEST_CONTRACT_ADDRESS, TEST_CONTRACT_ABI, signer)
-                const symbol = await evotContract.symbol()
+                const evotContract = new ethers.Contract(EVOT_TESTNET_CONTRACT_ADDRESS, EVOT_CONTRACT_ABI, signer)
                 const balance = await evotContract.balanceOf(address)
-                setUserBalance(ethers.utils.formatUnits(balance, 18))
+                const decimals = await evotContract.decimals()
+                console.log(ethers.utils.formatUnits(balance, decimals))
+                setUserBalance(ethers.utils.formatUnits(balance, decimals))
+                const symbol = await evotContract.symbol()
                 setDefaultSymbol(symbol)
                 console.log(symbol)
-                console.log(ethers.utils.formatUnits(balance, 18))
             }
         }
         
@@ -61,14 +63,14 @@ const WalletCard = () => {
                     const ethersProvider = new ethers.providers.Web3Provider(walletProvider)
                     const signer = ethersProvider.getSigner()
                     // The Contract object
-                    const evotContract = new ethers.Contract(EVOT_CONTRACT_ADDRESS, EVOT_CONTRACT_ABI, signer)
+                    const evotContract = new ethers.Contract(EVOT_TESTNET_CONTRACT_ADDRESS, EVOT_CONTRACT_ABI, signer)
                     const decimals = await evotContract.decimals()
                     const evotWithSigner = evotContract.connect(signer);
                     const evot = ethers.utils.parseUnits(amountToCredit, decimals);
                     evotWithSigner.transfer(EVO_WALLET_ADDRESS, evot)
                     .then(function(tx){
-                        setCreditAmount(amountToCredit/100)
-                        const thresholdAmount = Number(amountToCredit/100) + Number(minThreshold)
+                        setCreditAmount(amountToCredit/amountDenominator)
+                        const thresholdAmount = Number(amountToCredit/amountDenominator) + Number(minThreshold)
                         setMinThreshold(thresholdAmount)
                     })
                 } else {
@@ -110,9 +112,6 @@ const WalletCard = () => {
             if (!isConnected) {
                 setErrorMessage("User disconnected")
             } else {
-                console.log(EVO_WALLET_ADDRESS);
-                console.log(EVOT_CONTRACT_ADDRESS);
-                console.log(EVO_WALLET_PRIVATE_KEY);
                 const winAmount = Number(creditAmount) + Number(betAmount)
                 console.log(winAmount)
                 setCreditAmount(winAmount)
